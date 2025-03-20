@@ -1,9 +1,10 @@
 import requests
 from os import getenv
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import time
 import pandas as pd
+from airport_location import get_airport_coordinates
 
 load_dotenv()
 
@@ -12,13 +13,12 @@ AVIATIONSTACK_API_URL = "http://api.aviationstack.com/v1/flights"
 
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 OPEN_METEO_HISTORY_URL = "https://archive-api.open-meteo.com/v1/archive"
-GEOCODING_API_URL = "https://geocoding-api.open-meteo.com/v1/search"
 
-weather_cache = {}
+FLIGHTS_AMOUNT = 100  # Number of flights to fetch
 
 
 def get_flights():
-    url = f"http://api.aviationstack.com/v1/flights?access_key={AVIATIONSTACK_API_KEY}&limit=10"
+    url = f"http://api.aviationstack.com/v1/flights?access_key={AVIATIONSTACK_API_KEY}&limit={FLIGHTS_AMOUNT}"
     response = requests.get(url)
     data = response.json()
     print('request for flights sent')
@@ -33,115 +33,108 @@ def get_flights():
         arrival = flight.get("arrival", {})
 
         # Ensure required data exists
-        if not departure.get("airport") or not arrival.get("airport"):
+        if not departure.get("airport") or not arrival.get("airport") or not arrival.get('actual'):
             continue  # Skip flights with missing airport info
 
         flights.append({
             "flight_number": flight.get("flight", {}).get("iata", "Unknown"),
+            "flight_status": flight.get("flight_status", "Unknown"),
             "departure_airport": departure.get("airport"),
             "arrival_airport": arrival.get("airport"),
-            "departure_time": departure.get("estimated", "Unknown")  # ISO format time
+            "departure_airport_iata": departure.get("iata"),
+            "arrival_airport_iata": arrival.get("iata"),
+            "scheduled_departure_time": departure.get("scheduled", "Unknown"),  # ISO format time
+            "scheduled_arrival_time": arrival.get("scheduled", "Unknown"),  # ISO format time
+            "actual_departure_time": departure.get("actual", None),  # ISO format time
+            "actual_arrival_time": arrival.get("actual", None)  # ISO format time
         })
-
     return flights
 
 
-def get_coordinates(location_name):
-    if location_name in weather_cache:
-        return weather_cache[location_name]['lat'], weather_cache[location_name]['lon']
+def get_weather(flight_time, lat, lon):
+    """
+    Получает погоду за 3 часа до и после заданного времени в указанной локации.
+    """
+    weather_data = {}  # Словарь для хранения данных по каждому году
 
-    url = f"{GEOCODING_API_URL}?name={location_name}&count=1"
+    flight_dt = datetime.fromisoformat(flight_time)  # Преобразуем ISO8601 время в объект datetime
+    start_time = (flight_dt - timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%S")
+    end_time = (flight_dt + timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%S")
+
+    # Выбираем нужный API (архивный или прогнозный)
+    is_past = flight_dt < datetime.now(timezone.utc)
+    base_url = OPEN_METEO_HISTORY_URL if is_past else OPEN_METEO_URL
+
+    url = (
+        f"{base_url}?latitude={lat}&longitude={lon}"
+        f"&start_date={start_time[:10]}&end_date={end_time[:10]}"
+        f"&hourly=temperature_2m,rain,snowfall,snow_depth,showers,visibility,wind_speed_180m,temperature_180m"
+    )
+
     response = requests.get(url)
     data = response.json()
-    print('request for coordinates sent')
-    if "results" in data and len(data["results"]) > 0:
-        lat, lon = data["results"][0]["latitude"], data["results"][0]["longitude"]
-        weather_cache[location_name] = {'lat': lat, 'lon': lon}
-        return lat, lon
-    else:
-        print(f"Could not find coordinates for {location_name}")
-        return None, None
+    weather_data = []
 
+    if 'hourly' in data:
+        df = pd.DataFrame(data['hourly'])
+        weather_data.append(df)
 
-# Step 3: Fetch current and forecast weather from Open-Meteo (cache results)
-def get_weather(location_name):
-    if location_name in weather_cache and 'weather' in weather_cache[location_name]:
-        return weather_cache[location_name]['weather']
+    for year in range(1, 6):  # Цикл на 5 лет назад
+        past_dt = flight_dt - timedelta(days=365 * year)  # Вычитаем год
+        start_time = (past_dt - timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%S")
+        end_time = (past_dt + timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%S")
 
-    lat, lon = get_coordinates(location_name)
-    if lat is None or lon is None:
-        return None  # Skip if location not found
+        url = (
+            f"{OPEN_METEO_HISTORY_URL}?latitude={lat}&longitude={lon}"
+            f"&start_date={start_time[:10]}&end_date={end_time[:10]}"
+            f"&hourly=temperature_2m,precipitation,wind_speed_10m"
+        )
 
-    url = f"{OPEN_METEO_URL}?latitude={lat}&longitude={lon}&current_weather=true&hourly=temperature_2m,precipitation,wind_speed_10m"
-    response = requests.get(url)
-    data = response.json()
-    print('request for weather sent')
-    # Cache weather data for future use
-    if 'current_weather' in data:
-        weather_cache[location_name]['weather'] = data
-    return data
-
-
-# Step 4: Fetch historical weather for 10 years (3-hour intervals)
-def get_historical_weather(location_name, date):
-    if location_name in weather_cache and 'historical' in weather_cache[location_name]:
-        return weather_cache[location_name]['historical']
-
-    lat, lon = get_coordinates(location_name)
-    if lat is None or lon is None:
-        return None  # Skip if location not found
-
-    historical_data = []
-    for year in range(10):  # Go back 10 years
-        date_clean = date.split("+")[0]  # Keeps only the part before '+'
-        past_date = (datetime.strptime(date_clean, "%Y-%m-%dT%H:%M:%S") - timedelta(days=365 * year)).strftime("%Y-%m-%d")
-        url = f"{OPEN_METEO_HISTORY_URL}?latitude={lat}&longitude={lon}&start_date={past_date}&end_date={past_date}&hourly=temperature_2m,precipitation,wind_speed_10m"
         response = requests.get(url)
         data = response.json()
-        print('request for historical weather sent')
+
         if "hourly" in data:
-            historical_data.append({
-                "date": past_date,
-                "temperature": data["hourly"]["temperature_2m"][0],  # Take first 3-hour interval
-                "precipitation": data["hourly"]["precipitation"][0],
-                "wind_speed": data["hourly"]["wind_speed_10m"][0]
-            })
+            df = pd.DataFrame(data["hourly"])
+            weather_data.append(df)
+    print(weather_data)
+    if weather_data:
+        final_df = pd.concat(weather_data, ignore_index=True)
+    else:
+        final_df = pd.DataFrame()
+        final_df['time'] = pd.to_datetime(final_df['time'])
 
-    # Cache historical data for future use
-    weather_cache[location_name]['historical'] = historical_data
-    return historical_data
+    return final_df
 
 
-def process_flights():
-    flights = get_flights()
+def process_flights(flights):
     results = []
 
     for flight in flights:
-        dep_weather = get_weather(flight["departure_airport"])
-        arr_weather = get_weather(flight["arrival_airport"])
-
-        # Get historical weather (10 years, 3-hour intervals)
-        historical_dep = get_historical_weather(flight["departure_airport"], flight["departure_time"])
-        historical_arr = get_historical_weather(flight["arrival_airport"], flight["departure_time"])
-
-        results.append({
+        lat_dep, lon_dep = get_airport_coordinates(flight["departure_airport_iata"])
+        lat_arr, lon_arr = get_airport_coordinates(flight["arrival_airport_iata"])
+        if flight["actual_departure_time"]:
+            dep_weather = get_weather(flight["actual_departure_time"], lat_dep, lon_dep)
+        else:
+            dep_weather = get_weather(flight["scheduled_departure_time"], lat_dep, lon_dep)
+        if flight["actual_arrival_time"]:
+            arr_weather = get_weather(flight["actual_arrival_time"], lat_arr, lon_arr)
+        else:
+            arr_weather = get_weather(flight["scheduled_arrival_time"], lat_arr, lon_arr)
+        flight_info = {
             "flight_number": flight["flight_number"],
-            "departure_airport": flight["departure_airport"],
-            "arrival_airport": flight["arrival_airport"],
-            "departure_time": flight["departure_time"],
-            "departure_weather": dep_weather["current_weather"] if dep_weather and "current_weather" in dep_weather else None,
-            "arrival_weather": arr_weather["current_weather"] if arr_weather and "current_weather" in arr_weather else None,
-            "historical_departure_weather": historical_dep,
-            "historical_arrival_weather": historical_arr
-        })
-
+            "flight_status": flight["flight_status"],
+            'departure_airport_iata': flight["departure_airport_iata"],
+            'arrival_airport_iata': flight["arrival_airport_iata"],
+            "scheduled_departure_time": flight["scheduled_departure_time"],
+            "scheduled_arrival_time": flight["scheduled_arrival_time"],
+            "actual_departure_time": flight["actual_departure_time"],
+            "actual_arrival_time": flight["actual_arrival_time"],
+        }
+        results.append((flight_info, dep_weather, arr_weather))
         time.sleep(1)  # Avoid API rate limits
 
     return results
 
-# Step 5: Run and Save to CSV
-flights_data = process_flights()
-df = pd.DataFrame(flights_data)
-df.to_csv("flights_weather_data.csv", index=False)
 
-print("Data saved to flights_weather_data.csv")
+flights = get_flights()
+flights_data = process_flights(flights)
