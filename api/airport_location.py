@@ -1,5 +1,6 @@
-import pandas as pd
 import os
+
+import pandas as pd
 
 PATH = os.path.abspath(os.getcwd())
 file_path = "\\api\\airports-code@public.csv"

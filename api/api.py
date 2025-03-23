@@ -1,10 +1,14 @@
-import requests
-from os import getenv
-from dotenv import load_dotenv
-from datetime import datetime, timedelta, timezone
 import time
+from datetime import datetime, timedelta, timezone
+from os import getenv
+
 import pandas as pd
+import requests
+from dotenv import load_dotenv
+from joblib import dump
+
 from airport_location import get_airport_coordinates
+
 
 load_dotenv()
 
@@ -14,7 +18,7 @@ AVIATIONSTACK_API_URL = "http://api.aviationstack.com/v1/flights"
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 OPEN_METEO_HISTORY_URL = "https://archive-api.open-meteo.com/v1/archive"
 
-FLIGHTS_AMOUNT = 100  # Number of flights to fetch
+FLIGHTS_AMOUNT = 100000  # Number of flights to fetch
 
 
 def get_flights():
@@ -96,7 +100,6 @@ def get_weather(flight_time, lat, lon):
         if "hourly" in data:
             df = pd.DataFrame(data["hourly"])
             weather_data.append(df)
-    print(weather_data)
     if weather_data:
         final_df = pd.concat(weather_data, ignore_index=True)
     else:
@@ -106,7 +109,7 @@ def get_weather(flight_time, lat, lon):
     return final_df
 
 
-def process_flights(flights):
+def process_flights(flights) -> list[dict, pd.DataFrame, pd.DataFrame]:
     results = []
 
     for flight in flights:
@@ -138,3 +141,5 @@ def process_flights(flights):
 
 flights = get_flights()
 flights_data = process_flights(flights)
+
+dump(flights_data, 'flights_data.joblib')  # Save data to file

@@ -1,0 +1,16 @@
+:root {
+    --font-family: "Nimbus Sans";
+
+    --color-text: #222a37;
+    --color-background: #f1f3f8;
+  
+    --transition-time: 0.3s;
+
+    --color-grey: #A7A8AA;
+    --color-green: #C4D600;
+    --color-dark-green: #abba00;
+    --color-dark-grey: #53565A;
+
+    --color-red: #D22630;
+  }
+  

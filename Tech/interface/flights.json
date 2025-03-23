@@ -1,0 +1,37 @@
+{
+    "flights": [
+        {
+            "from_city": "Москва",
+            "from_airport": "DME",
+            "to_city": "Санкт-Петербург",
+            "to_airport": "LED",
+            "departure_time": 1712549400,
+            "arrival_time": 1712551200,
+            "id": "Ivanov_A123456",
+            "delay_probability": 30,
+            "cancellation_probability": 5
+        },
+        {
+            "from_city": "Новосибирск",
+            "from_airport": "OVB",
+            "to_city": "Екатеринбург",
+            "to_airport": "SVX",
+            "departure_time": 1712554800,
+            "arrival_time": 1712557800,
+            "id": "Petrov_B987654",
+            "delay_probability": 45,
+            "cancellation_probability": 10
+        },
+        {
+            "from_city": "Нижний Новгород",
+            "from_airport": "GOJ",
+            "to_city": "Ростов-на-Дону",
+            "to_airport": "ROV",
+            "departure_time": 1712563200,
+            "arrival_time": 1712567400,
+            "id": "Vasiliev_D159753",
+            "delay_probability": 60,
+            "cancellation_probability": 15
+        }
+    ]
+}

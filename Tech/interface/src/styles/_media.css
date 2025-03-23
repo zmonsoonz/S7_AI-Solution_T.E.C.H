@@ -1,0 +1,40 @@
+@media(max-width: 890px) {
+    .container {
+        padding: 0px 10px;
+        width: 480px;
+        margin: 0 auto;
+    }
+    .card_content {
+        justify-content: center !important;
+    }
+    .search-form {
+        justify-content: center !important;
+    }
+    .field__input {
+        width: 400px !important;
+    }
+}
+
+@media(max-width: 500px) {
+    .container {
+        padding: 0px 5px;
+        width: 350px;
+        margin: 0 auto;
+    }
+
+    .field__input {
+        width: 300px !important;
+    }
+
+    .tickets_card {
+        padding: 16px !important;
+    }
+
+    .search-container {
+        padding: 16px !important;
+    }
+
+    .airport {
+        align-self: center !important;
+    }
+}

@@ -1,0 +1,31 @@
+@font-face {
+    font-family: "Nimbus Sans";
+    src: url(../fonts/NimbusSanNov-Reg.otf);
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Nimbus Sans";
+    src: url(../fonts/NimbusSanNov-Med.otf);
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Nimbus Sans";
+    src: url(../fonts/NimbusSanNov-SemBol.otf);
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Nimbus Sans";
+    src: url(../fonts/NimbusSanNov-Bol.otf);
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}

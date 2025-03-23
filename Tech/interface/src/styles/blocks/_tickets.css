@@ -1,0 +1,68 @@
+.tickets {
+    margin-top: 32px;
+}
+.tickets svg {
+    fill: var(--color-green);
+    transform: rotate(180deg);
+    margin-right: 10px;
+}
+.tickets_card {
+    padding: 32px;
+    border-radius: 12px;
+    background-color: white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    display: inline-block;
+    width: 100%;
+}
+.card_content {
+    display:flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    row-gap: 20px;
+}
+.card_info {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.card_info_item {
+    display: flex;
+    align-items: center; 
+    text-align: center;
+    gap: 5px;
+}
+
+.city {
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.airport {
+    font-size: 22px;
+    font-weight: 500;
+    align-self: end;
+}
+
+.time {
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--color-grey);
+}
+
+.card_delay {
+    font-size: 20px;
+    font-weight: 500;
+    border: 1px solid var(--color-green);
+    padding: 10px 15px;
+    border-radius: 5px;
+}
+
+.ticket_not_found {
+    margin-top: 32px;
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--color-red);
+    text-align: center;
+    visibility:hidden;
+}
